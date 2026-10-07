@@ -2,7 +2,7 @@ import { DEFAULT_WEIGHTS, GENDERS, STATUSES, uid, now } from './constants.js';
 import { recalculate } from './stats.js';
 
 export function newState() {
-  return { schemaVersion: 1, revision: 0, session: { id: uid(), startedAt: now() }, players: [], queue: [], activeMatches: [], completedMatches: [],
+  return { schemaVersion: 1, revision: 0, session: { id: uid(), startedAt: now() }, players: [], courts: [], queue: [], activeMatches: [], completedMatches: [],
     finance: { sessionCost: 0, shuttleCost: 0, shuttleCount: 0, otherCost: 0, feeMode: 'equal', flatFee: 0, perGame: 0, currency: 'PHP' },
     settings: { weights: { ...DEFAULT_WEIGHTS }, theme: 'dark' } };
 }
@@ -14,10 +14,15 @@ const nonnegative = v => Number.isFinite(v) && v >= 0 && v <= 1e9;
 
 // Validate all authoritative fields before recalculating derived fields. Never trust imported stats.
 export function validateState(input) {
+  input = structuredClone(input);
+  if (!Array.isArray(input.courts)) input.courts = [];
+  for (const bucket of ['queue', 'activeMatches', 'completedMatches']) {
+    if (Array.isArray(input[bucket])) for (const m of input[bucket]) if (plain(m) && !('courtId' in m)) m.courtId = null;
+  }
   assert(plain(input) && input.schemaVersion === 1, 'This is not a supported Shuttle Storm backup.');
   assert(Number.isSafeInteger(input.revision) && input.revision >= 0, 'Invalid session revision.');
   assert(plain(input.session) && id(input.session.id) && date(input.session.startedAt), 'Invalid session information.');
-  for (const key of ['players', 'queue', 'activeMatches', 'completedMatches']) assert(Array.isArray(input[key]) && input[key].length <= 10000, `Invalid ${key} list.`);
+  for (const key of ['players', 'courts', 'queue', 'activeMatches', 'completedMatches']) assert(Array.isArray(input[key]) && input[key].length <= 10000, `Invalid ${key} list.`);
   assert(input.players.length <= 500, 'A session supports up to 500 players.');
   const ids = new Set();
   for (const p of input.players) {
@@ -27,7 +32,13 @@ export function validateState(input) {
     assert(Number.isInteger(p.skillLevel) && p.skillLevel >= 1 && p.skillLevel <= 5, 'Invalid player skill level.');
     assert(date(p.checkedInAt) && date(p.availableSince) && typeof p.paid === 'boolean', 'Invalid player check-in or payment.');
   }
-  const matchIds = new Set(), assigned = new Set();
+  const courtIds = new Set();
+  for (const c of input.courts) {
+    assert(plain(c) && id(c.id) && !courtIds.has(c.id), 'Court IDs must be unique.'); courtIds.add(c.id);
+    assert(typeof c.name === 'string' && c.name.trim().length > 0 && c.name.length <= 40, 'Court names must contain 1–40 characters.');
+    assert(date(c.createdAt), 'Invalid court creation time.');
+  }
+  const matchIds = new Set(), assigned = new Set(), occupiedCourts = new Set();
   for (const bucket of ['queue', 'activeMatches', 'completedMatches']) {
     for (const m of input[bucket]) {
       assert(plain(m) && id(m.id) && !matchIds.has(m.id), 'Match IDs must be unique.'); matchIds.add(m.id);
@@ -37,6 +48,12 @@ export function validateState(input) {
       assert(date(m.createdAt), 'Invalid match creation time.');
       if (bucket !== 'queue') assert(date(m.startedAt) && m.startedAt >= m.createdAt, 'Invalid match start time.');
       else assert(m.startedAt === null, 'A queued match cannot have a start time.');
+      assert(m.courtId === null || id(m.courtId), 'Invalid court assignment.');
+      if (bucket === 'queue') assert(m.courtId === null, 'A queued match cannot already occupy a court.');
+      if (bucket === 'activeMatches' && m.courtId !== null) {
+        assert(courtIds.has(m.courtId), 'An active match references a missing court.');
+        assert(!occupiedCourts.has(m.courtId), 'A court cannot host multiple active matches.'); occupiedCourts.add(m.courtId);
+      }
       if (bucket === 'completedMatches') assert(date(m.completedAt) && m.completedAt >= m.startedAt && [0, 1].includes(m.winner), 'Invalid match result or finish time.');
       else {
         assert(m.completedAt === null && m.winner === null, 'An unfinished match cannot have a result.');
