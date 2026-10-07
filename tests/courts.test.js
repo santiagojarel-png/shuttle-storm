@@ -5,7 +5,7 @@ import { addCourt, removeCourt, freeCourts } from '../js/courts.js';
 import { savePlayer } from '../js/players.js';
 import { generateQueue, startMatch, finishMatch } from '../js/queue.js';
 import { parseBackup } from '../js/storage.js';
-import { queueView, courtsView } from '../js/views.js';
+import { queueView } from '../js/views.js';
 
 const render = s => queueView(s, { mode: 'Balanced' });
 const session = () => {
@@ -41,11 +41,12 @@ test('court naming, occupancy protection, completion and backup persistence', ()
   assert.equal(restored.players.filter(p => p.wins === 1).length, 2);
 });
 
-test('both views show each live matchup once and offer actions for the correct court', () => {
+test('Queue shows each live matchup once and offer actions for the correct court', () => {
   const s = session(), first = addCourt(s), second = addCourt(s);
   const m = s.queue[0]; startMatch(s, m.id, first.id);
   s.players.find(p => p.id === m.teams[0][0]).name = '<Charlotte & Jazz>';
-  for (const html of [render(s), courtsView(s)]) {
+  {
+    const html = render(s);
     assert.equal((html.match(/data-action="finish"/g) || []).length, 1);
     assert.match(html, /&lt;Charlotte &amp; Jazz&gt;/);
     assert.ok(html.includes(`data-action="start-next-on-court" data-id="${second.id}"`));

@@ -18,7 +18,7 @@ The development server listens only on this computer. To install on an Android p
 
 1. Open Players and add names, genders and skill levels. Bulk add accepts one name per line and assigns common initial gender/skill values.
 2. Open Queue and use + Add Court to add your courts (blank names become Court 1, Court 2, etc.). The court overview appears at the top, showing availability and current teams with VS between them. Below it, choose Balanced, Mixed Doubles or Same Gender Balanced, then Generate queue. This fills as many disjoint matches as the eligible pool allows. Existing matches remain intact.
-3. Use Start next match on an available court to assign the first queued match there, or Start match on a queued match to use the first available court. Each court hosts one active match. The Courts tab shares the same overview and controls.
+3. Use Start next match on an available court to assign the first queued match there, or Start match on a queued match to use the first available court. Each court hosts one active match. Court creation, removal and match controls all live in Queue. Old #courts links redirect to Queue.
 4. Use Finish match on its court card and select the winner. This frees the court. All four players get a game, winners get wins, and opponents get losses.
 5. Use Stats to correct participants/results or delete a mistaken completed match. Statistics are rebuilt from history each time.
 6. Finance stores costs, fee rules and paid flags. Payment never changes player status.
@@ -117,7 +117,7 @@ Browser smoke tests performed in an isolated test origin:
 - Added eight test players, generated two matches, started/finished a match, and refreshed successfully.
 - Corrected the winner and verified recalculated wins/losses.
 - Stopped the local server, reloaded the cached app, saved finance changes, reloaded again, generated and started matches.
-- Verified Queue court creation, start/finish actions, statistics, Courts-tab parity and refresh persistence.
+- Verified Queue court creation, start/finish actions, statistics, legacy Courts-link redirection and refresh persistence.
 - Inspected desktop (1366 × 900) and phone (390 × 844) layouts in dark/light themes; checked 320px width and long names for horizontal overflow.
 
 Physical Android installation and Firebase have not been verified. This is a working local first version, not a hosted production deployment.

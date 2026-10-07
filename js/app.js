@@ -5,19 +5,20 @@ import { saveMatch, generateQueue, startMatch, finishMatch, removeMatch, moveMat
 import { addCourt, removeCourt } from './courts.js';
 import { startNewSession } from './session.js';
 import { csv, winPercentage } from './stats.js';
-import { queueView, playersView, courtsView, statsView, settingsView } from './views.js';
+import { queueView, playersView, statsView, settingsView } from './views.js';
 import { escape, button, options, field, select, modal, closeModal, toast, download } from './ui.js';
 
 const main = document.querySelector('#main');
 const filters = { search: '', status: '', gender: '', playerSort: 'name', statsSort: 'wins', mode: 'Balanced' };
 let store, installPrompt, pendingImport;
-const getView = () => ['queue', 'players', 'courts', 'stats', 'settings'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'queue';
+const getView = () => ['queue', 'players', 'stats', 'settings'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'queue';
 function render() {
+  if (location.hash === '#courts') history.replaceState(null, '', '#queue');
   const s = store.get(), view = getView();
   document.documentElement.dataset.theme = s.settings.theme;
   document.title = `Shuttle Storm · ${view[0].toUpperCase() + view.slice(1)}`;
   document.querySelectorAll('nav a').forEach(a => a.setAttribute('aria-current', a.dataset.view === view ? 'page' : 'false'));
-  main.innerHTML = ({ queue: queueView, players: playersView, courts: courtsView, stats: statsView, settings: settingsView })[view](s, filters);
+  main.innerHTML = ({ queue: queueView, players: playersView, stats: statsView, settings: settingsView })[view](s, filters);
 }
 function confirmAction(title, description, action, id = '') {
   modal(title, `<p>${description}</p><p class="form-error" role="alert"></p><div class="dialog-actions">${button('Cancel', 'close')}${button('Confirm', action, id, 'primary')}</div>`);

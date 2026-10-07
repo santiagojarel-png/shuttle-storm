@@ -23,13 +23,6 @@ function courtOverview(s) {
   return `<section class="court-overview" aria-label="Court overview">${s.courts.length ? `<div class="queue-grid">${cards}</div>` : empty('No courts yet', 'Add the courts you are using for this session.', button('+ Add Court', 'add-court', '', 'primary'))}${unassigned.length ? `<section class="remaining"><h2>Playing without a court</h2><p class="muted">These matches came from an older session. Finish them here.</p><div class="queue-grid">${unassigned.map(m => matchCard(s, m, 'playing')).join('')}</div></section>` : ''}</section>`;
 }
 
-export function courtsView(s) {
-  const freeCount = s.courts.filter(c => !s.activeMatches.some(m => m.courtId === c.id)).length;
-  return title('COURT CONTROL', 'Courts', button('+ Add Court', 'add-court', '', 'primary')) +
-    `<div class="metrics">${metric(s.courts.length, 'Courts')}${metric(s.activeMatches.length, 'Matches playing')}${metric(freeCount, 'Courts available')}${metric(s.queue.length, 'Matches queued')}</div>` +
-    courtOverview(s);
-}
-
 export function queueView(s, filters) {
   const available = eligible(s);
   return title('THE SESSION / LIVE QUEUE', 'Let’s play.', button('+ Add Court', 'add-court', '', 'primary')) + courtOverview(s) +
