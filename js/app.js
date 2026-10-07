@@ -2,21 +2,22 @@ import { SKILLS, GENDERS } from './constants.js';
 import { createStore, parseBackup } from './storage.js';
 import { savePlayer, setStatus, deletePlayer, assignment } from './players.js';
 import { saveMatch, generateQueue, startMatch, finishMatch, removeMatch, moveMatch } from './queue.js';
+import { addCourt, removeCourt } from './courts.js';
 import { startNewSession } from './session.js';
 import { csv, winPercentage } from './stats.js';
-import { queueView, playersView, statsView, financeView, settingsView } from './views.js';
+import { queueView, playersView, courtsView, statsView, settingsView } from './views.js';
 import { escape, button, options, field, select, modal, closeModal, toast, download } from './ui.js';
 
 const main = document.querySelector('#main');
 const filters = { search: '', status: '', gender: '', playerSort: 'name', statsSort: 'wins', mode: 'Balanced' };
 let store, installPrompt, pendingImport;
-const getView = () => ['queue', 'players', 'stats', 'finance', 'settings'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'queue';
+const getView = () => ['queue', 'players', 'courts', 'stats', 'settings'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'queue';
 function render() {
   const s = store.get(), view = getView();
   document.documentElement.dataset.theme = s.settings.theme;
   document.title = `Shuttle Storm · ${view[0].toUpperCase() + view.slice(1)}`;
   document.querySelectorAll('nav a').forEach(a => a.setAttribute('aria-current', a.dataset.view === view ? 'page' : 'false'));
-  main.innerHTML = ({ queue: queueView, players: playersView, stats: statsView, finance: financeView, settings: settingsView })[view](s, filters);
+  main.innerHTML = ({ queue: queueView, players: playersView, courts: courtsView, stats: statsView, settings: settingsView })[view](s, filters);
 }
 function confirmAction(title, description, action, id = '') {
   modal(title, `<p>${description}</p><p class="form-error" role="alert"></p><div class="dialog-actions">${button('Cancel', 'close')}${button('Confirm', action, id, 'primary')}</div>`);
@@ -38,6 +39,9 @@ async function action(target) {
   if (a === 'settings') { location.hash = 'settings'; return; }
   if (a === 'go-players') { location.hash = 'players'; return; }
   if (a === 'add-player' || a === 'edit-player') return playerDialog(id);
+  if (a === 'add-court') return modal('Add court', `<form id="court-form">${field('Court name', '<input name="name" maxlength="40" placeholder="Court 1" autofocus>')}<p class="muted">Leave blank to use the next available Court number.</p><p class="form-error" role="alert"></p><div class="dialog-actions">${button('Cancel', 'close')}<button class="primary" type="submit">Add court</button></div></form>`);
+  if (a === 'remove-court') return confirmAction('Remove court?', 'Active courts cannot be removed until the match is finished.', 'confirm-remove-court', id);
+  if (a === 'confirm-remove-court') { await update(s => removeCourt(s, id), 'Court removed.'); closeModal(); return; }
   if (a === 'bulk') return modal('Bulk add players', `<form id="bulk-form"><p class="muted">One name per line. All players get the selected gender and skill level; edit individual profiles afterwards. Duplicate names are rejected here.</p>${field('Names', '<textarea name="names" rows="7" maxlength="10000" required placeholder="Jarel\nJaz\nDrazen\nTevin"></textarea>')}<div class="form-grid">${field('Gender', select('gender', GENDERS, 'Male'))}${field('Skill level', select('skillLevel', SKILLS.map((x, i) => [i + 1, x]), 1))}</div><p class="form-error" role="alert"></p><div class="dialog-actions">${button('Cancel', 'close')}<button class="primary" type="submit">Add players</button></div></form>`);
   if (a === 'delete-player') return confirmAction('Delete player?', 'This removes their profile. Players with match history must be checked out instead.', 'confirm-delete-player', id);
   if (a === 'confirm-delete-player') { await update(s => deletePlayer(s, id), 'Player deleted.'); closeModal(); return; }
@@ -47,7 +51,8 @@ async function action(target) {
     toast(`${result.count} match${result.count === 1 ? '' : 'es'} added. ${result.reason}`); return;
   }
   if (a === 'manual' || a === 'edit-match' || a === 'edit-history') return matchDialog(id || null, a === 'edit-history');
-  if (a === 'start') return update(s => startMatch(s, id), 'Match started. Good game!');
+  if (a === 'start') { let court; await update(s => { court = startMatch(s, id); }); toast(`Match started on ${court.name}. Good game!`); return; }
+  if (a === 'start-next-on-court') { let court; await update(s => { const next = s.queue[0]; if (!next) throw new Error('There is no queued match to start.'); court = startMatch(s, next.id, id); }); toast(`Match started on ${court.name}. Good game!`); return; }
   if (a === 'finish') {
     const s = store.get(), m = s.activeMatches.find(m => m.id === id);
     if (!m) throw new Error('Match is no longer playing.');
@@ -88,6 +93,7 @@ document.addEventListener('submit', async event => {
   if (submit.disabled) return; submit.disabled = true;
   try {
     if (form.id === 'player-form') { await update(s => savePlayer(s, data, form.dataset.id || null, data.duplicate === 'on'), 'Player saved.'); closeModal(); }
+    if (form.id === 'court-form') { let court; await update(s => { court = addCourt(s, data.name); }); toast(`${court.name} added.`); closeModal(); }
     if (form.id === 'bulk-form') {
       const names = data.names.split(/\r?\n/).map(n => n.trim()).filter(Boolean);
       if (!names.length) throw new Error('Enter at least one player name.');
