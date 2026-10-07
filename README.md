@@ -1,6 +1,6 @@
 # Shuttle Storm
 
-A local-first badminton doubles queue manager built with HTML, CSS and vanilla JavaScript ES modules. No framework, package dependencies, Firebase dependency, court entity, tracking or reference-site runtime requests.
+A local-first badminton doubles queue manager built with HTML, CSS and vanilla JavaScript ES modules. No framework, package dependencies, Firebase dependency, tracking or reference-site runtime requests.
 
 ## Run
 
@@ -17,16 +17,16 @@ The development server listens only on this computer. To install on an Android p
 ## Use
 
 1. Open Players and add names, genders and skill levels. Bulk add accepts one name per line and assigns common initial gender/skill values.
-2. Open Queue, choose Balanced, Mixed Doubles or Same Gender Balanced, then Generate queue. This fills as many disjoint matches as the eligible pool allows. Existing matches remain intact.
-3. Start any queued match. Multiple matches can play at once, without court assignments.
-4. Finish a match and select the winner. All four players get a game, winners get wins, and opponents get losses.
+2. Open Queue and use + Add Court to add your courts (blank names become Court 1, Court 2, etc.). The court overview appears at the top, showing availability and current teams with VS between them. Below it, choose Balanced, Mixed Doubles or Same Gender Balanced, then Generate queue. This fills as many disjoint matches as the eligible pool allows. Existing matches remain intact.
+3. Use Start next match on an available court to assign the first queued match there, or Start match on a queued match to use the first available court. Each court hosts one active match. The Courts tab shares the same overview and controls.
+4. Use Finish match on its court card and select the winner. This frees the court. All four players get a game, winners get wins, and opponents get losses.
 5. Use Stats to correct participants/results or delete a mistaken completed match. Statistics are rebuilt from history each time.
 6. Finance stores costs, fee rules and paid flags. Payment never changes player status.
 7. Use Settings → Export full session JSON to keep a separate backup. Import validates it, then requires confirmation before replacing the session. CSV exports are for spreadsheets, not restoring app data.
 
 Edit teams to replace players or swap partners/opponents. The up/down buttons reorder queued matches. Remove releases the players. Players in a queued or playing match must be released or finish before changing their status. Profile deletion is blocked when a player has completed history; check them out instead, or delete the profile after starting a new session.
 
-Start new session keeps stable player IDs, names, genders, skill levels and app preferences. It resets session data, costs and payments, and moves every player to standby for explicit check-in. Clear all players is a separate confirmed operation that also removes the roster. Both set a fresh session start time. Export first if you want to preserve the previous session.
+Start new session keeps stable player IDs, names, genders, skill levels and app preferences, plus configured courts. It resets session data, costs and payments, and moves every player to standby for explicit check-in. Clear all players is a separate confirmed operation that also removes the roster. Both set a fresh session start time. Export first if you want to preserve the previous session.
 
 ## Project map
 
@@ -38,13 +38,14 @@ Start new session keeps stable player IDs, names, genders, skill levels and app 
 | `js/storage.js` | Transactional local persistence, validated JSON import, stale-tab checks |
 | `js/players.js` | Player profiles, eligibility, check-in, status and deletion rules |
 | `js/matchmaking.js` | Fair player selection and weighted team optimization |
+| `js/courts.js` | Court creation, availability and protected removal |
 | `js/queue.js` | Queue generation, manual matches, ordering, start, finish and corrections |
 | `js/stats.js` | History-derived stats, last-play times and safe CSV formatting |
 | `js/finance.js` | Integer-cent costs, fees and payment summaries |
 | `js/session.js` | New-session and clear-roster operations |
 | `js/views.js`, `js/ui.js`, `js/app.js` | Rendering, dialogs, input handling, navigation and downloads |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Install metadata and offline shell |
-| `tests/core.test.js` | Automated integrity and behavior tests |
+| `tests/core.test.js`, `tests/courts.test.js` | Automated integrity, court and view behavior tests |
 | `scripts/serve.js`, `scripts/check.js` | Dependency-free local server and syntax/asset checks |
 
 ## Matchmaking algorithm
@@ -71,7 +72,7 @@ Ties are deterministic using activation time and stable player ID. This is a tra
 
 ## State and persistence
 
-The state contains `schemaVersion`, `revision`, `session`, `players`, `queue`, `activeMatches`, `completedMatches`, `finance`, and `settings`. There is no court collection or court identifier.
+The state contains `schemaVersion`, `revision`, `session`, `players`, `courts`, `queue`, `activeMatches`, `completedMatches`, `finance`, and `settings`. Matches reference courts through `courtId`. Courts and assignments persist through refresh and JSON backup/restore. Older backups without court fields remain supported; their active matches appear under Playing without a court and can still be finished.
 
 All UI mutations go through `store.update`: clone → apply business operation → validate entire draft → rebuild derived stats → persist → render. Failed writes do not publish an unsaved state. Imported game counts, win/loss totals, last-play time and current-match markers are overwritten with values derived from validated history and active matches. Winner is internally team index 0 or 1.
 
@@ -109,17 +110,18 @@ npm test
 npm run check
 ```
 
-21 automated tests cover unique doubles matches, fewer-game and wait priority, fading arrival effects, active/queued exclusion, standby/checkout, completion, history corrections and deletion, replacement players, mixed/same-gender constraints, skill balance, partner variety, refresh persistence, JSON round trips, malformed imports, failed storage writes, stale tabs, reset distinctions, payments, exact-cent splits, duplicate-name override, protected profile deletion, reorder and CSV formula escaping.
+Automated tests cover court naming, occupancy, Queue rendering, legacy backups, unique doubles matches, fewer-game and wait priority, fading arrival effects, active/queued exclusion, standby/checkout, completion, history corrections and deletion, replacement players, mixed/same-gender constraints, skill balance, partner variety, refresh persistence, JSON round trips, malformed imports, failed storage writes, stale tabs, reset distinctions, payments, exact-cent splits, duplicate-name override, protected profile deletion, reorder and CSV formula escaping.
 
 Browser smoke tests performed in an isolated test origin:
 
 - Added eight test players, generated two matches, started/finished a match, and refreshed successfully.
 - Corrected the winner and verified recalculated wins/losses.
 - Stopped the local server, reloaded the cached app, saved finance changes, reloaded again, generated and started matches.
-- Inspected phone (390 × 844) and desktop (1366 × 900) layouts.
+- Verified Queue court creation, start/finish actions, statistics, Courts-tab parity and refresh persistence.
+- Inspected desktop (1366 × 900) and phone (390 × 844) layouts in dark/light themes; checked 320px width and long names for horizontal overflow.
 
 Physical Android installation and Firebase have not been verified. This is a working local first version, not a hosted production deployment.
 
 ## Functional reference
 
-The public UI at https://www.smashsyndicateph.com/ was reviewed only for player, queue, stats, finance and backup workflows. No source code, text, branding, logo or proprietary asset was copied. Its tournament, subscription, advertising and court-management systems are outside this app's scope.
+The public UI at https://www.smashsyndicateph.com/ was reviewed only for player, queue, stats, finance and backup workflows. No source code, text, branding, logo or proprietary asset was copied. Its tournament, subscription, and advertising systems are outside this app's scope.

@@ -8,8 +8,9 @@ import { recalculate, csv } from '../js/stats.js';
 import { createStore, loadState, parseBackup } from '../js/storage.js';
 import { startNewSession } from '../js/session.js';
 import { playerFees, financeSummary } from '../js/finance.js';
+import { addCourt } from '../js/courts.js';
 import { STORAGE_KEY } from '../js/constants.js';
-const roster = (n = 8) => { const s = newState(); for (let i = 0; i < n; i++) savePlayer(s, { name: `Player ${i + 1}`, gender: i % 2 ? 'Female' : 'Male', skillLevel: i % 5 + 1 }); return s; };
+const roster = (n = 8) => { const s = newState(); addCourt(s); for (let i = 0; i < n; i++) savePlayer(s, { name: `Player ${i + 1}`, gender: i % 2 ? 'Female' : 'Male', skillLevel: i % 5 + 1 }); return s; };
 const memory = () => { const data = new Map(); return { getItem: k => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) }; };
 const completed = s => { generateQueue(s, 'Balanced'); const id = s.queue[0].id; startMatch(s, id); finishMatch(s, id, 0); recalculate(s); return s.completedMatches[0]; };
 
