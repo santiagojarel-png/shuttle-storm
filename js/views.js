@@ -8,8 +8,22 @@ const title = (eyebrow, heading, actions = '') => `<div class="page-head"><div><
 const metric = (value, label) => `<div class="metric"><strong>${value}</strong><span>${label}</span></div>`;
 export function matchCard(s, m, type, index = 0) {
   const controls = type === 'playing' ? button('Finish match', 'finish', m.id, 'primary') : type === 'history' ? button('Correct result / players', 'edit-history', m.id) + button('Delete', 'delete-history', m.id, 'quiet danger') : button('Start match', 'start', m.id, 'primary') + button('Edit teams', 'edit-match', m.id) + button('↑', 'up', m.id, 'icon-button', index === 0) + button('↓', 'down', m.id, 'icon-button', index === s.queue.length - 1) + button('Remove', 'remove-match', m.id, 'quiet');
-  return `<article class="match-card ${type === 'playing' ? 'playing-card' : ''}"><div class="match-meta"><span>${type === 'playing' ? '<i class="live-dot"></i> IN PLAY' : type === 'history' ? 'COMPLETED' : `MATCH ${String(index + 1).padStart(2, '0')}`}</span><span>${type === 'playing' ? `Started ${time(m.startedAt)}` : type === 'history' ? time(m.completedAt) : index === 0 ? 'READY WHEN YOU ARE' : 'RESERVED'}</span></div><div class="teams">${m.teams.map((t, side) => `${side ? '<span class="versus">VS</span>' : ''}<div class="team ${m.winner === side ? 'winner' : ''}">${t.map(id => `<span>${name(s, id)}</span>`).join('')}<small>${m.winner === side ? 'WINNERS' : `TEAM ${side + 1}`}</small></div>`).join('')}</div><div class="match-actions">${controls}</div></article>`;
+  const court = m.courtId ? s.courts.find(c => c.id === m.courtId) : null;
+  return `<article class="match-card ${type === 'playing' ? 'playing-card' : ''}"><div class="match-meta"><span>${type === 'playing' ? '<i class="live-dot"></i> IN PLAY' : type === 'history' ? 'COMPLETED' : `MATCH ${String(index + 1).padStart(2, '0')}`}</span><span>${type === 'playing' ? `${court ? `${escape(court.name)} · ` : ''}Started ${time(m.startedAt)}` : type === 'history' ? time(m.completedAt) : index === 0 ? 'READY WHEN YOU ARE' : 'RESERVED'}</span></div><div class="teams">${m.teams.map((t, side) => `${side ? '<span class="versus">VS</span>' : ''}<div class="team ${m.winner === side ? 'winner' : ''}">${t.map(id => `<span>${name(s, id)}</span>`).join('')}<small>${m.winner === side ? 'WINNERS' : `TEAM ${side + 1}`}</small></div>`).join('')}</div><div class="match-actions">${controls}</div></article>`;
 }
+
+export function courtsView(s) {
+  const activeByCourt = new Map(s.activeMatches.filter(m => m.courtId).map(m => [m.courtId, m]));
+  const freeCount = s.courts.filter(c => !activeByCourt.has(c.id)).length;
+  const cards = s.courts.map(c => {
+    const match = activeByCourt.get(c.id);
+    return `<section class="panel"><div class="section-title"><h2>${escape(c.name)}</h2><span>${match ? 'IN PLAY' : 'AVAILABLE'}</span></div>${match ? matchCard(s, match, 'playing') : empty('Court ready', s.queue.length ? 'Start the next queued match on this court.' : 'Queue a match first.', s.queue.length ? button('Start next match', 'start-next-on-court', c.id, 'primary') : '')}${match ? '' : `<div class="actions">${button('Remove court', 'remove-court', c.id, 'quiet danger')}</div>`}</section>`;
+  }).join('');
+  return title('COURT CONTROL', 'Courts', button('+ Add Court', 'add-court', '', 'primary')) +
+    `<div class="metrics">${metric(s.courts.length, 'Courts')}${metric(s.activeMatches.length, 'Matches playing')}${metric(freeCount, 'Courts available')}${metric(s.queue.length, 'Matches queued')}</div>` +
+    (s.courts.length ? `<div class="queue-grid">${cards}</div>` : empty('No courts yet', 'Add the courts you are using for this session.', button('+ Add Court', 'add-court', '', 'primary')));
+}
+
 export function queueView(s, filters) {
   const available = eligible(s);
   return title('THE SESSION / LIVE QUEUE', 'Let’s play.', button('+ Manual match', 'manual') + button('Generate queue', 'generate', '', 'primary')) +
