@@ -1,6 +1,7 @@
 import { uid, now } from './constants.js';
 import { assert } from './state.js';
 import { chooseMatch } from './matchmaking.js';
+import { freeCourts } from './courts.js';
 export function validateTeams(s, teams, ignoreId = null, completed = false) {
   assert(Array.isArray(teams) && teams.length === 2 && teams.every(t => Array.isArray(t) && t.length === 2), 'Select two players per team.');
   const ids = teams.flat();
@@ -21,7 +22,7 @@ export function saveMatch(s, teams, matchId = null, completed = false, winner = 
     if (completed) { assert([0, 1].includes(winner), 'Choose the winning team.'); m.winner = winner; }
   } else {
     assert(!completed, 'Create a queued match first.');
-    s.queue.push({ id: uid(), teams, createdAt: now(), startedAt: null, completedAt: null, winner: null });
+    s.queue.push({ id: uid(), teams, courtId: null, createdAt: now(), startedAt: null, completedAt: null, winner: null });
   }
 }
 export function generateQueue(s, mode) {
@@ -32,10 +33,19 @@ export function generateQueue(s, mode) {
   }
   assert(count, reason); return { count, reason };
 }
-export function startMatch(s, id) {
+export function startMatch(s, id, courtId = null) {
   const m = s.queue.find(m => m.id === id); assert(m, 'Match is no longer queued.');
   validateTeams(s, m.teams, id);
-  s.queue = s.queue.filter(m => m.id !== id); m.startedAt = now(); s.activeMatches.push(m);
+  let court;
+  if (courtId) {
+    court = s.courts.find(c => c.id === courtId); assert(court, 'Choose an existing court.');
+    assert(!s.activeMatches.some(match => match.courtId === courtId), `${court.name} is already in use.`);
+  } else {
+    court = freeCourts(s)[0];
+    assert(court, s.courts.length ? 'All courts are currently in use.' : 'Add a court before starting a match.');
+  }
+  s.queue = s.queue.filter(match => match.id !== id); m.courtId = court.id; m.startedAt = now(); s.activeMatches.push(m);
+  return court;
 }
 export function finishMatch(s, id, winner) {
   const m = s.activeMatches.find(m => m.id === id); assert(m, 'Match is no longer playing.');
