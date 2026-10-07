@@ -1,4 +1,4 @@
-const CACHE = 'shuttle-storm-shell-v3';
+const CACHE = 'shuttle-storm-shell-v5';
 const SHELL = ['./', './index.html', './styles.css', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', ...['app', 'constants', 'state', 'stats', 'players', 'courts', 'queue', 'matchmaking', 'finance', 'session', 'storage', 'ui', 'views'].map(n => `./js/${n}.js`)];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL))));
 // Updates wait until all old app windows close, avoiding mixed module versions mid-session.
